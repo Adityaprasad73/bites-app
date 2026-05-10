@@ -23,7 +23,7 @@ export default function Navbar() {
         </nav>
 
         <div className="flex items-center gap-3">
-          <Link to="/cart" className="relative text-sm font-medium px-3 py-2">
+          <Link to="/cart" className="relative text-sm font-medium px-3 py-2 hidden md:block">
             Cart
             {count > 0 && (
               <span className="absolute -top-1 -right-1 bg-[var(--accent)] text-white text-[10px] font-bold rounded-full w-5 h-5 grid place-items-center">{count}</span>
@@ -31,8 +31,12 @@ export default function Navbar() {
           </Link>
           {user ? (
             <>
-              <span className="text-sm hidden sm:inline text-[var(--muted)]">{user.name}</span>
-              <button onClick={() => { logout(); nav('/'); }} className="btn btn-ghost text-sm">Sign out</button>
+              <Link to="/profile" className="hidden md:flex items-center gap-2 text-sm font-semibold hover:text-[var(--accent)] transition">
+                <span className="w-8 h-8 rounded-full bg-gradient-to-br from-[var(--accent)] to-orange-400 flex items-center justify-center text-white font-bold text-sm">
+                  {user.name?.charAt(0)?.toUpperCase()}
+                </span>
+                <span className="hidden lg:inline text-[var(--muted)]">{user.name}</span>
+              </Link>
             </>
           ) : (
             <Link to="/login" className="btn btn-primary text-sm">Sign in</Link>

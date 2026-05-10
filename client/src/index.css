@@ -68,3 +68,8 @@ body {
   50% { opacity: .5; transform: scale(1.3); }
 }
 .pulse-dot { animation: pulseDot 1.4s ease-in-out infinite; }
+
+/* Mobile bottom nav spacing */
+@media (max-width: 768px) {
+  main { padding-bottom: 5rem; }
+}

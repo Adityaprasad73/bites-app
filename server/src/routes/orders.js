@@ -1,0 +1,176 @@
+import { Router } from 'express';
+import Order, { ORDER_STATUSES } from '../models/Order.js';
+import MenuItem from '../models/MenuItem.js';
+import Restaurant from '../models/Restaurant.js';
+import User from '../models/User.js';
+import { auth, requireRole } from '../middleware/auth.js';
+import { emitOrderUpdate } from '../sockets/index.js';
+
+const router = Router();
+
+// Customer places order
+router.post('/', auth, requireRole('customer'), async (req, res) => {
+  try {
+    const { restaurantId, items, address } = req.body;
+    if (!restaurantId || !Array.isArray(items) || items.length === 0 || !address) {
+      return res.status(400).json({ error: 'Invalid order' });
+    }
+    const restaurant = await Restaurant.findById(restaurantId);
+    if (!restaurant || !restaurant.isOpen) return res.status(400).json({ error: 'Restaurant unavailable' });
+
+    const menuIds = items.map((i) => i.menuItemId);
+    const menuItems = await MenuItem.find({ _id: { $in: menuIds }, restaurant: restaurant._id });
+    const map = new Map(menuItems.map((m) => [String(m._id), m]));
+
+    const orderItems = [];
+    let subtotal = 0;
+    for (const i of items) {
+      const m = map.get(String(i.menuItemId));
+      if (!m) return res.status(400).json({ error: `Menu item ${i.menuItemId} not found` });
+      const qty = Math.max(1, Number(i.quantity) || 1);
+      orderItems.push({ menuItem: m._id, name: m.name, price: m.price, quantity: qty });
+      subtotal += m.price * qty;
+    }
+    const deliveryFee = 30;
+    const total = subtotal + deliveryFee;
+
+    const order = await Order.create({
+      customer: req.user._id,
+      restaurant: restaurant._id,
+      items: orderItems,
+      subtotal,
+      deliveryFee,
+      total,
+      address,
+    });
+
+    emitOrderUpdate(order, { event: 'order:new' });
+    res.status(201).json(order);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Customer: my orders
+router.get('/mine', auth, requireRole('customer'), async (req, res) => {
+  const orders = await Order.find({ customer: req.user._id })
+    .populate('restaurant', 'name image')
+    .sort({ createdAt: -1 });
+  res.json(orders);
+});
+
+// Single order (customer who placed it, restaurant owner, assigned partner, or admin)
+router.get('/:id', auth, async (req, res) => {
+  const order = await Order.findById(req.params.id)
+    .populate('restaurant', 'name image address')
+    .populate('customer', 'name phone')
+    .populate('deliveryPartner', 'name phone');
+  if (!order) return res.status(404).json({ error: 'Not found' });
+
+  const uid = String(req.user._id);
+  const isCustomer = String(order.customer._id) === uid;
+  const isPartner = order.deliveryPartner && String(order.deliveryPartner._id) === uid;
+  const isAdmin = req.user.role === 'admin';
+  let isOwner = false;
+  if (req.user.role === 'restaurant_owner') {
+    const r = await Restaurant.findById(order.restaurant._id);
+    isOwner = r && String(r.owner) === uid;
+  }
+  if (!(isCustomer || isPartner || isAdmin || isOwner)) {
+    return res.status(403).json({ error: 'Forbidden' });
+  }
+  res.json(order);
+});
+
+// Restaurant owner: orders for my restaurants
+router.get('/restaurant/incoming', auth, requireRole('restaurant_owner', 'admin'), async (req, res) => {
+  const myRestaurants = await Restaurant.find({ owner: req.user._id }).select('_id');
+  const ids = myRestaurants.map((r) => r._id);
+  const orders = await Order.find({ restaurant: { $in: ids } })
+    .populate('customer', 'name phone')
+    .populate('restaurant', 'name')
+    .sort({ createdAt: -1 });
+  res.json(orders);
+});
+
+// Delivery partner: available orders (ready, no partner yet) + my active
+router.get('/delivery/feed', auth, requireRole('delivery_partner', 'admin'), async (req, res) => {
+  const available = await Order.find({
+    status: 'ready_for_pickup',
+    deliveryPartner: null,
+  })
+    .populate('restaurant', 'name address')
+    .populate('customer', 'name')
+    .sort({ createdAt: 1 });
+  const mine = await Order.find({
+    deliveryPartner: req.user._id,
+    status: { $in: ['ready_for_pickup', 'out_for_delivery'] },
+  })
+    .populate('restaurant', 'name address')
+    .populate('customer', 'name phone');
+  res.json({ available, mine });
+});
+
+// Status transition validator
+const TRANSITIONS = {
+  placed: ['accepted', 'cancelled'],
+  accepted: ['preparing', 'cancelled'],
+  preparing: ['ready_for_pickup'],
+  ready_for_pickup: ['out_for_delivery'],
+  out_for_delivery: ['delivered'],
+  delivered: [],
+  cancelled: [],
+};
+
+router.patch('/:id/status', auth, async (req, res) => {
+  try {
+    const { status } = req.body;
+    if (!ORDER_STATUSES.includes(status)) return res.status(400).json({ error: 'Bad status' });
+
+    const order = await Order.findById(req.params.id);
+    if (!order) return res.status(404).json({ error: 'Not found' });
+
+    if (!TRANSITIONS[order.status].includes(status)) {
+      return res.status(400).json({ error: `Cannot move from ${order.status} to ${status}` });
+    }
+
+    // role-based authorization for the transition
+    const uid = String(req.user._id);
+    const role = req.user.role;
+    let allowed = role === 'admin';
+
+    if (role === 'restaurant_owner' && ['accepted', 'preparing', 'ready_for_pickup', 'cancelled'].includes(status)) {
+      const r = await Restaurant.findById(order.restaurant);
+      allowed = r && String(r.owner) === uid;
+    }
+    if (role === 'delivery_partner' && ['out_for_delivery', 'delivered'].includes(status)) {
+      allowed = order.deliveryPartner && String(order.deliveryPartner) === uid;
+    }
+    if (role === 'customer' && status === 'cancelled' && order.status === 'placed') {
+      allowed = String(order.customer) === uid;
+    }
+
+    if (!allowed) return res.status(403).json({ error: 'Not allowed for this transition' });
+
+    order.status = status;
+    await order.save();
+    emitOrderUpdate(order, { event: 'order:status' });
+    res.json(order);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Delivery partner accepts an order (claims it)
+router.patch('/:id/accept-delivery', auth, requireRole('delivery_partner'), async (req, res) => {
+  const order = await Order.findById(req.params.id);
+  if (!order) return res.status(404).json({ error: 'Not found' });
+  if (order.status !== 'ready_for_pickup') return res.status(400).json({ error: 'Not ready for pickup' });
+  if (order.deliveryPartner) return res.status(409).json({ error: 'Already taken' });
+  order.deliveryPartner = req.user._id;
+  await order.save();
+  emitOrderUpdate(order, { event: 'order:claimed' });
+  res.json(order);
+});
+
+export default router;

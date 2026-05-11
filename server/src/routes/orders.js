@@ -15,6 +15,12 @@ router.post('/', auth, requireRole('customer'), async (req, res) => {
     if (!restaurantId || !Array.isArray(items) || items.length === 0 || !address) {
       return res.status(400).json({ error: 'Invalid order' });
     }
+    // Validate all IDs are valid MongoDB ObjectIds before hitting the DB
+    const isValidId = (id) => /^[a-f\d]{24}$/i.test(String(id));
+    if (!isValidId(restaurantId)) return res.status(400).json({ error: 'Invalid restaurant ID' });
+    for (const i of items) {
+      if (!isValidId(i.menuItemId)) return res.status(400).json({ error: `Invalid menu item ID: ${i.menuItemId}. Please clear your cart and add items again.` });
+    }
     const restaurant = await Restaurant.findById(restaurantId);
     if (!restaurant || !restaurant.isOpen) return res.status(400).json({ error: 'Restaurant unavailable' });
 

@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import Restaurant from '../models/Restaurant.js';
 import MenuItem from '../models/MenuItem.js';
+import Order from '../models/Order.js';
 import { auth, requireRole } from '../middleware/auth.js';
 
 const router = Router();
@@ -25,6 +26,28 @@ router.get('/:id', async (req, res) => {
   if (!restaurant) return res.status(404).json({ error: 'Not found' });
   const menu = await MenuItem.find({ restaurant: restaurant._id, available: true });
   res.json({ restaurant, menu });
+});
+
+// Public: reviews for a restaurant
+router.get('/:id/reviews', async (req, res) => {
+  try {
+    const reviews = await Order.find({
+      restaurant: req.params.id,
+      customerRating: { $ne: null },
+    })
+      .populate('customer', 'name')
+      .select('customerRating customerReview customer createdAt')
+      .sort({ createdAt: -1 })
+      .limit(50);
+
+    // Rating breakdown (1–5 star counts)
+    const breakdown = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+    reviews.forEach(r => { if (r.customerRating) breakdown[r.customerRating]++; });
+
+    res.json({ reviews, breakdown, total: reviews.length });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // Owner: create restaurant

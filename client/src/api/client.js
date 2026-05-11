@@ -31,6 +31,7 @@ export const api = {
   // restaurants
   listRestaurants: (q = '') => request(`/restaurants${q ? `?q=${encodeURIComponent(q)}` : ''}`, { auth: false }),
   getRestaurant: (id) => request(`/restaurants/${id}`, { auth: false }),
+  getRestaurantReviews: (id) => request(`/restaurants/${id}/reviews`, { auth: false }),
   createRestaurant: (data) => request('/restaurants', { method: 'POST', body: data }),
   addMenuItem: (id, item) => request(`/restaurants/${id}/menu`, { method: 'POST', body: item }),
   myRestaurants: () => request('/restaurants/owner/mine'),

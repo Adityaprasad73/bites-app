@@ -3,16 +3,65 @@ import { useParams } from 'react-router-dom';
 import { api } from '../api/client.js';
 import { useCart } from '../context/CartContext.jsx';
 
+const STAR_LABELS = { 1: 'Poor', 2: 'Fair', 3: 'Good', 4: 'Great', 5: 'Excellent' };
+
+function StarRow({ rating, count, total }) {
+  const pct = total > 0 ? Math.round((count / total) * 100) : 0;
+  return (
+    <div className="flex items-center gap-2 text-sm">
+      <span className="w-3 text-[var(--muted)] text-right">{rating}</span>
+      <span className="text-yellow-400 text-xs">★</span>
+      <div className="flex-1 h-2 bg-[var(--line)] rounded-full overflow-hidden">
+        <div className="h-full bg-yellow-400 rounded-full transition-all" style={{ width: `${pct}%` }} />
+      </div>
+      <span className="w-6 text-xs text-[var(--muted)] text-right">{count}</span>
+    </div>
+  );
+}
+
+function ReviewCard({ review }) {
+  const stars = review.customerRating;
+  return (
+    <div className="border-b border-[var(--line)] last:border-b-0 py-4">
+      <div className="flex items-center justify-between mb-1.5">
+        <div className="flex items-center gap-2">
+          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[var(--accent)] to-orange-400 flex items-center justify-center text-white font-bold text-sm shrink-0">
+            {review.customer?.name?.charAt(0)?.toUpperCase() || '?'}
+          </div>
+          <div>
+            <p className="font-semibold text-sm">{review.customer?.name || 'Anonymous'}</p>
+            <p className="text-xs text-[var(--muted)]">
+              {new Date(review.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+            </p>
+          </div>
+        </div>
+        <div className="flex items-center gap-1 bg-green-50 border border-green-200 rounded-full px-2.5 py-1">
+          <span className="text-yellow-400 text-sm">★</span>
+          <span className="text-sm font-bold text-green-700">{stars}</span>
+        </div>
+      </div>
+      {review.customerReview && (
+        <p className="text-sm text-[var(--ink)] ml-10">{review.customerReview}</p>
+      )}
+      {!review.customerReview && (
+        <p className="text-sm text-[var(--muted)] ml-10 italic">{STAR_LABELS[stars]} — no written review</p>
+      )}
+    </div>
+  );
+}
+
 export default function Restaurant() {
   const { id } = useParams();
   const [data, setData] = useState(null);
   const [vegOnly, setVegOnly] = useState(false);
   const [activeCategory, setActiveCategory] = useState(null);
+  const [reviews, setReviews] = useState(null);
   const { add, cart } = useCart();
   const sectionRefs = useRef({});
 
   useEffect(() => {
     api.getRestaurant(id).then(setData).catch(() => setData(false));
+    api.getRestaurantReviews(id).then(setReviews).catch(() => setReviews({ reviews: [], breakdown: {}, total: 0 }));
   }, [id]);
 
   const categories = useMemo(() => {
@@ -199,6 +248,55 @@ export default function Restaurant() {
           </div>
         </div>
       )}
+
+      {/* Reviews section */}
+      <div className="mt-10">
+        <h2 className="font-display text-3xl font-black mb-6">
+          Reviews
+          {reviews?.total > 0 && <span className="text-[var(--muted)] text-xl font-normal ml-2">({reviews.total})</span>}
+        </h2>
+
+        {!reviews && (
+          <p className="text-[var(--muted)] text-sm">Loading reviews…</p>
+        )}
+
+        {reviews?.total === 0 && (
+          <div className="card p-8 text-center">
+            <p className="text-4xl mb-3">💬</p>
+            <p className="font-semibold">No reviews yet</p>
+            <p className="text-sm text-[var(--muted)] mt-1">Be the first to order and leave a review!</p>
+          </div>
+        )}
+
+        {reviews?.total > 0 && (
+          <div className="grid md:grid-cols-3 gap-6">
+            {/* Rating summary card */}
+            <div className="card p-5">
+              <div className="text-center mb-4">
+                <p className="font-display text-6xl font-black text-yellow-400">{restaurant.rating}</p>
+                <div className="flex justify-center gap-0.5 my-1">
+                  {[1,2,3,4,5].map(s => (
+                    <span key={s} className={`text-lg ${s <= Math.round(restaurant.rating) ? 'text-yellow-400' : 'text-gray-200'}`}>★</span>
+                  ))}
+                </div>
+                <p className="text-sm text-[var(--muted)]">{reviews.total} rating{reviews.total !== 1 ? 's' : ''}</p>
+              </div>
+              <div className="space-y-2">
+                {[5,4,3,2,1].map(s => (
+                  <StarRow key={s} rating={s} count={reviews.breakdown[s] || 0} total={reviews.total} />
+                ))}
+              </div>
+            </div>
+
+            {/* Review list */}
+            <div className="card p-5 md:col-span-2">
+              {reviews.reviews.map(r => (
+                <ReviewCard key={r._id} review={r} />
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

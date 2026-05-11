@@ -142,16 +142,57 @@ router.get('/delivery/feed', auth, requireRole('delivery_partner', 'admin'), asy
     status: 'ready_for_pickup',
     deliveryPartner: null,
   })
-    .populate('restaurant', 'name address')
-    .populate('customer', 'name')
+    .populate('restaurant', 'name address image')
+    .populate('customer', 'name phone')
     .sort({ createdAt: 1 });
   const mine = await Order.find({
     deliveryPartner: req.user._id,
     status: { $in: ['ready_for_pickup', 'out_for_delivery'] },
   })
-    .populate('restaurant', 'name address')
+    .populate('restaurant', 'name address image')
     .populate('customer', 'name phone');
   res.json({ available, mine });
+});
+
+// Delivery partner: completed delivery history + earnings summary
+router.get('/delivery/history', auth, requireRole('delivery_partner', 'admin'), async (req, res) => {
+  try {
+    const orders = await Order.find({
+      deliveryPartner: req.user._id,
+      status: 'delivered',
+    })
+      .populate('restaurant', 'name address image')
+      .populate('customer', 'name')
+      .sort({ updatedAt: -1 })
+      .limit(50);
+
+    const DELIVERY_CUT = 0.15;
+    const now = new Date();
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const weekStart = new Date(todayStart); weekStart.setDate(weekStart.getDate() - 7);
+
+    let todayCount = 0, todayEarnings = 0, weekEarnings = 0, allTimeEarnings = 0;
+    for (const o of orders) {
+      const earn = Math.round(o.total * DELIVERY_CUT);
+      allTimeEarnings += earn;
+      if (new Date(o.updatedAt) >= weekStart) weekEarnings += earn;
+      if (new Date(o.updatedAt) >= todayStart) { todayCount++; todayEarnings += earn; }
+    }
+
+    res.json({
+      orders,
+      stats: {
+        todayCount,
+        todayEarnings,
+        weekEarnings,
+        allTimeEarnings,
+        totalDeliveries: orders.length,
+        avgPerOrder: orders.length ? Math.round(allTimeEarnings / orders.length) : 0,
+      },
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // Status transition validator

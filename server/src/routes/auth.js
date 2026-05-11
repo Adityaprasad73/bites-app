@@ -39,4 +39,33 @@ router.get('/me', auth, (req, res) => {
   res.json({ user: req.user });
 });
 
+// Delivery partner: toggle online/offline status
+router.patch('/toggle-online', auth, async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id);
+    if (!user) return res.status(404).json({ error: 'User not found' });
+    user.isOnline = !user.isOnline;
+    await user.save();
+    res.json({ isOnline: user.isOnline });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Update profile (name, phone, address, vehicleType)
+router.patch('/profile', auth, async (req, res) => {
+  try {
+    const { name, phone, address, vehicleType } = req.body;
+    const update = {};
+    if (name) update.name = name;
+    if (phone) update.phone = phone;
+    if (address) update.address = address;
+    if (vehicleType) update.vehicleType = vehicleType;
+    const user = await User.findByIdAndUpdate(req.user._id, update, { new: true });
+    res.json({ user });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 export default router;

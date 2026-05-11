@@ -13,6 +13,8 @@ const userSchema = new mongoose.Schema(
       default: 'customer',
     },
     address: { type: String, trim: true },
+    isOnline: { type: Boolean, default: false }, // delivery partner online status
+    vehicleType: { type: String, enum: ['bike', 'bicycle', 'scooter', 'car'], default: 'bike' },
   },
   { timestamps: true }
 );

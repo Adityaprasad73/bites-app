@@ -25,6 +25,8 @@ export const api = {
   register: (data) => request('/auth/register', { method: 'POST', body: data, auth: false }),
   login: (data) => request('/auth/login', { method: 'POST', body: data, auth: false }),
   me: () => request('/auth/me'),
+  toggleOnline: () => request('/auth/toggle-online', { method: 'PATCH' }),
+  updateProfile: (data) => request('/auth/profile', { method: 'PATCH', body: data }),
 
   // restaurants
   listRestaurants: (q = '') => request(`/restaurants${q ? `?q=${encodeURIComponent(q)}` : ''}`, { auth: false }),
@@ -40,6 +42,7 @@ export const api = {
   getOrder: (id) => request(`/orders/${id}`),
   incomingOrders: () => request('/orders/restaurant/incoming'),
   deliveryFeed: () => request('/orders/delivery/feed'),
+  deliveryHistory: () => request('/orders/delivery/history'),
   setStatus: (id, status) => request(`/orders/${id}/status`, { method: 'PATCH', body: { status } }),
   acceptDelivery: (id) => request(`/orders/${id}/accept-delivery`, { method: 'PATCH' }),
   rateOrder: (id, data) => request(`/orders/${id}/rate`, { method: 'PATCH', body: data }),

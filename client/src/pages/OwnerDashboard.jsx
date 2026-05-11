@@ -3,7 +3,9 @@ import { Link } from 'react-router-dom';
 import { api } from '../api/client.js';
 import { useSocket } from '../hooks/useSocket.js';
 import { useAuth } from '../context/AuthContext.jsx';
+import { useToast } from '../components/Toast.jsx';
 import StatusBadge from '../components/StatusBadge.jsx';
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts';
 
 const NEXT_ACTIONS = {
   placed: { next: 'accepted', label: 'Accept order' },
@@ -13,15 +15,17 @@ const NEXT_ACTIONS = {
 
 export default function OwnerDashboard() {
   const { user } = useAuth();
+  const toast = useToast();
   const [orders, setOrders] = useState([]);
   const [restaurants, setRestaurants] = useState([]);
   const [busy, setBusy] = useState({});
-  const [tab, setTab] = useState('orders'); // 'orders' | 'menu'
+  const [tab, setTab] = useState('orders'); // 'orders' | 'menu' | 'analytics'
   const [selectedRestaurant, setSelectedRestaurant] = useState(null);
   const [showAddItem, setShowAddItem] = useState(false);
   const [menuItem, setMenuItem] = useState({ name: '', description: '', price: '', category: 'Main Course', isVeg: true, image: '' });
   const [addingItem, setAddingItem] = useState(false);
-  const [menuMsg, setMenuMsg] = useState('');
+  const [analytics, setAnalytics] = useState(null);
+  const [analyticsLoading, setAnalyticsLoading] = useState(false);
 
   async function load() {
     const [o, r] = await Promise.all([api.incomingOrders(), api.myRestaurants()]);
@@ -42,23 +46,61 @@ export default function OwnerDashboard() {
 
   async function transition(orderId, status) {
     setBusy((b) => ({ ...b, [orderId]: true }));
-    try { await api.setStatus(orderId, status); await load(); }
-    catch (err) { alert(err.message); }
-    finally { setBusy((b) => ({ ...b, [orderId]: false })); }
+    try {
+      await api.setStatus(orderId, status);
+      await load();
+      const msgs = {
+        accepted: 'Order accepted!',
+        preparing: 'Kitchen started preparing 👨‍🍳',
+        ready_for_pickup: 'Order ready for pickup!',
+        cancelled: 'Order rejected.',
+      };
+      toast(msgs[status] || 'Status updated', status === 'cancelled' ? 'error' : 'success');
+    } catch (err) {
+      toast(err.message, 'error');
+    } finally {
+      setBusy((b) => ({ ...b, [orderId]: false }));
+    }
   }
+
+  async function toggleOpen(restaurant) {
+    setBusy((b) => ({ ...b, [restaurant._id]: true }));
+    try {
+      const updated = await api.toggleRestaurantOpen(restaurant._id);
+      // Update local state without full reload
+      setRestaurants((prev) => prev.map((r) => r._id === updated._id ? updated : r));
+      if (selectedRestaurant?._id === updated._id) setSelectedRestaurant(updated);
+      toast(updated.isOpen ? `${updated.name} is now open!` : `${updated.name} is now closed.`, 'success');
+    } catch (err) {
+      toast(err.message, 'error');
+    } finally {
+      setBusy((b) => ({ ...b, [restaurant._id]: false }));
+    }
+  }
+
+  async function loadAnalytics(restaurant) {
+    if (!restaurant) return;
+    setAnalyticsLoading(true);
+    try { setAnalytics(await api.getRestaurantAnalytics(restaurant._id)); }
+    catch (e) { toast(e.message, 'error'); }
+    finally { setAnalyticsLoading(false); }
+  }
+
+  useEffect(() => {
+    if (tab === 'analytics' && selectedRestaurant) loadAnalytics(selectedRestaurant);
+  }, [tab, selectedRestaurant?._id]);
 
   async function addItem(e) {
     e.preventDefault();
     if (!selectedRestaurant) return;
     setAddingItem(true);
-    setMenuMsg('');
     try {
       await api.addMenuItem(selectedRestaurant._id, { ...menuItem, price: Number(menuItem.price) });
-      setMenuMsg('✅ Item added successfully!');
+      toast(`"${menuItem.name}" added to menu!`, 'success');
       setMenuItem({ name: '', description: '', price: '', category: 'Main Course', isVeg: true, image: '' });
       setShowAddItem(false);
     } catch (err) {
-      setMenuMsg('❌ ' + err.message);
+      toast(err.message, 'error');
     } finally {
       setAddingItem(false);
     }
@@ -77,12 +119,40 @@ export default function OwnerDashboard() {
         <Link to="/owner/new-restaurant" className="btn btn-primary">+ New restaurant</Link>
       </div>
 
+      {/* Restaurant open/close toggles */}
+      {restaurants.length > 0 && (
+        <div className="flex flex-wrap gap-3 mb-6">
+          {restaurants.map((r) => (
+            <div key={r._id} className="card px-4 py-3 flex items-center gap-3">
+              <div>
+                <p className="font-semibold text-sm">{r.name}</p>
+                <p className="text-xs text-[var(--muted)]">{r.cuisine}</p>
+              </div>
+              <button
+                onClick={() => toggleOpen(r)}
+                disabled={busy[r._id]}
+                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${
+                  r.isOpen !== false ? 'bg-green-500' : 'bg-[var(--line)]'
+                }`}
+              >
+                <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${
+                  r.isOpen !== false ? 'translate-x-6' : 'translate-x-1'
+                }`} />
+              </button>
+              <span className={`text-xs font-semibold ${r.isOpen !== false ? 'text-green-600' : 'text-[var(--muted)]'}`}>
+                {r.isOpen !== false ? 'Open' : 'Closed'}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+
       {/* Tabs */}
       <div className="flex gap-1 mb-8 bg-[var(--line)] p-1 rounded-2xl w-fit">
-        {['orders', 'menu'].map(t => (
+        {['orders', 'menu', 'analytics'].map(t => (
           <button key={t} onClick={() => setTab(t)}
             className={`px-5 py-2 rounded-xl text-sm font-semibold capitalize transition ${tab === t ? 'bg-white shadow text-[var(--ink)]' : 'text-[var(--muted)]'}`}>
-            {t === 'orders' ? `Orders ${active.length > 0 ? `(${active.length})` : ''}` : 'Manage Menu'}
+            {t === 'orders' ? `Orders ${active.length > 0 ? `(${active.length})` : ''}` : t === 'menu' ? 'Manage Menu' : '📊 Analytics'}
           </button>
         ))}
       </div>
@@ -143,6 +213,91 @@ export default function OwnerDashboard() {
         </>
       )}
 
+      {tab === 'analytics' && (
+        <div>
+          {restaurants.length === 0 ? (
+            <p className="text-[var(--muted)]">Create a restaurant first.</p>
+          ) : (
+            <>
+              {restaurants.length > 1 && (
+                <div className="flex gap-2 mb-6 overflow-x-auto">
+                  {restaurants.map(r => (
+                    <button key={r._id} onClick={() => { setSelectedRestaurant(r); loadAnalytics(r); }}
+                      className={`shrink-0 px-4 py-2 rounded-full text-sm font-semibold border transition ${
+                        selectedRestaurant?._id === r._id ? 'bg-[var(--accent)] text-white border-[var(--accent)]' : 'bg-white border-[var(--line)]'
+                      }`}>{r.name}</button>
+                  ))}
+                </div>
+              )}
+
+              {analyticsLoading ? (
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+                  {Array.from({length:4}).map((_,i) => <div key={i} className="card p-5 animate-pulse h-24 bg-[var(--line)]" />)}
+                </div>
+              ) : analytics ? (
+                <>
+                  {/* Stat cards */}
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+                    {[
+                      { label: 'Total revenue', value: `₹${analytics.totals.revenue.toLocaleString()}`, icon: '💰' },
+                      { label: 'Orders delivered', value: analytics.totals.orders, icon: '📦' },
+                      { label: 'Avg order value', value: analytics.totals.orders ? `₹${Math.round(analytics.totals.revenue / analytics.totals.orders)}` : '—', icon: '📊' },
+                      { label: 'Rating', value: `★ ${selectedRestaurant?.rating || '—'}`, icon: '⭐' },
+                    ].map(s => (
+                      <div key={s.label} className="card p-4">
+                        <p className="text-xl mb-1">{s.icon}</p>
+                        <p className="font-display text-2xl font-black">{s.value}</p>
+                        <p className="text-xs text-[var(--muted)] uppercase tracking-widest mt-0.5">{s.label}</p>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Revenue chart */}
+                  <div className="card p-5 mb-6">
+                    <h3 className="font-display text-xl font-bold mb-4">Revenue — last 30 days</h3>
+                    {analytics.dailyRevenue.length === 0 ? (
+                      <p className="text-[var(--muted)] text-sm text-center py-8">No delivered orders yet.</p>
+                    ) : (
+                      <ResponsiveContainer width="100%" height={220}>
+                        <AreaChart data={analytics.dailyRevenue} margin={{ top: 5, right: 10, left: 0, bottom: 0 }}>
+                          <defs>
+                            <linearGradient id="revGrad" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="5%" stopColor="#e11d48" stopOpacity={0.25} />
+                              <stop offset="95%" stopColor="#e11d48" stopOpacity={0} />
+                            </linearGradient>
+                          </defs>
+                          <CartesianGrid strokeDasharray="3 3" stroke="#ecddd2" />
+                          <XAxis dataKey="_id" tick={{ fontSize: 11 }} tickFormatter={d => d.slice(5)} />
+                          <YAxis tick={{ fontSize: 11 }} tickFormatter={v => `₹${v}`} width={55} />
+                          <Tooltip formatter={(v) => [`₹${v}`, 'Revenue']} labelFormatter={l => `Date: ${l}`} />
+                          <Area type="monotone" dataKey="revenue" stroke="#e11d48" strokeWidth={2} fill="url(#revGrad)" />
+                        </AreaChart>
+                      </ResponsiveContainer>
+                    )}
+                  </div>
+
+                  {/* Top items */}
+                  {analytics.topItems.length > 0 && (
+                    <div className="card p-5">
+                      <h3 className="font-display text-xl font-bold mb-4">Top selling items</h3>
+                      <ResponsiveContainer width="100%" height={200}>
+                        <BarChart data={analytics.topItems} margin={{ top: 5, right: 10, left: 0, bottom: 40 }}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="#ecddd2" />
+                          <XAxis dataKey="_id" tick={{ fontSize: 11 }} angle={-30} textAnchor="end" interval={0} />
+                          <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
+                          <Tooltip formatter={(v, n) => [v, n === 'count' ? 'Qty sold' : 'Revenue']} />
+                          <Bar dataKey="count" fill="#e11d48" radius={[4,4,0,0]} name="count" />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
+                  )}
+                </>
+              ) : null}
+            </>
+          )}
+        </div>
+      )}
+
       {tab === 'menu' && (
         <div>
           {restaurants.length === 0 ? (
@@ -163,8 +318,6 @@ export default function OwnerDashboard() {
                   ))}
                 </div>
               )}
-
-              {menuMsg && <p className="mb-4 text-sm font-medium">{menuMsg}</p>}
 
               <div className="flex items-center justify-between mb-4">
                 <h2 className="font-display text-2xl font-bold">{selectedRestaurant?.name} — Menu</h2>

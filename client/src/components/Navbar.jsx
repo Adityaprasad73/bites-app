@@ -20,6 +20,7 @@ export default function Navbar() {
           {user?.role === 'customer' && <NavLink to="/orders" className={({isActive}) => isActive ? 'text-[var(--accent)]' : ''}>My orders</NavLink>}
           {user?.role === 'restaurant_owner' && <NavLink to="/owner" className={({isActive}) => isActive ? 'text-[var(--accent)]' : ''}>Restaurant</NavLink>}
           {user?.role === 'delivery_partner' && <NavLink to="/delivery" className={({isActive}) => isActive ? 'text-[var(--accent)]' : ''}>Deliver</NavLink>}
+          {user?.role === 'admin' && <NavLink to="/admin" className={({isActive}) => isActive ? 'text-[var(--accent)]' : 'text-[var(--accent)] opacity-80'}>⚡ Admin</NavLink>}
         </nav>
 
         <div className="flex items-center gap-3">

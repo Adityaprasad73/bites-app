@@ -50,4 +50,16 @@ router.get('/owner/mine', auth, requireRole('restaurant_owner', 'admin'), async 
   res.json(list);
 });
 
+// Owner: toggle open/closed
+router.patch('/:id/toggle-open', auth, requireRole('restaurant_owner', 'admin'), async (req, res) => {
+  const restaurant = await Restaurant.findById(req.params.id);
+  if (!restaurant) return res.status(404).json({ error: 'Not found' });
+  if (req.user.role !== 'admin' && String(restaurant.owner) !== String(req.user._id)) {
+    return res.status(403).json({ error: 'Not your restaurant' });
+  }
+  restaurant.isOpen = !restaurant.isOpen;
+  await restaurant.save();
+  res.json(restaurant);
+});
+
 export default router;

@@ -59,6 +59,43 @@ router.get('/mine', auth, requireRole('customer'), async (req, res) => {
   res.json(orders);
 });
 
+// Owner analytics
+router.get('/restaurant/:rid/analytics', auth, requireRole('restaurant_owner', 'admin'), async (req, res) => {
+  try {
+    const restaurant = await Restaurant.findById(req.params.rid);
+    if (!restaurant) return res.status(404).json({ error: 'Not found' });
+    if (req.user.role !== 'admin' && String(restaurant.owner) !== String(req.user._id)) {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+    const [dailyRevenue, topItems, statusBreakdown, totals] = await Promise.all([
+      Order.aggregate([
+        { $match: { restaurant: restaurant._id, status: 'delivered', createdAt: { $gte: thirtyDaysAgo } } },
+        { $group: { _id: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } }, revenue: { $sum: '$total' }, orders: { $sum: 1 } } },
+        { $sort: { _id: 1 } },
+      ]),
+      Order.aggregate([
+        { $match: { restaurant: restaurant._id, status: { $ne: 'cancelled' } } },
+        { $unwind: '$items' },
+        { $group: { _id: '$items.name', count: { $sum: '$items.quantity' }, revenue: { $sum: { $multiply: ['$items.price', '$items.quantity'] } } } },
+        { $sort: { count: -1 } },
+        { $limit: 5 },
+      ]),
+      Order.aggregate([
+        { $match: { restaurant: restaurant._id } },
+        { $group: { _id: '$status', count: { $sum: 1 } } },
+      ]),
+      Order.aggregate([
+        { $match: { restaurant: restaurant._id, status: 'delivered' } },
+        { $group: { _id: null, revenue: { $sum: '$total' }, orders: { $sum: 1 } } },
+      ]),
+    ]);
+    res.json({ dailyRevenue, topItems, statusBreakdown, totals: totals[0] || { revenue: 0, orders: 0 } });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Single order (customer who placed it, restaurant owner, assigned partner, or admin)
 router.get('/:id', auth, async (req, res) => {
   const order = await Order.findById(req.params.id)
@@ -171,6 +208,29 @@ router.patch('/:id/accept-delivery', auth, requireRole('delivery_partner'), asyn
   await order.save();
   emitOrderUpdate(order, { event: 'order:claimed' });
   res.json(order);
+});
+
+// Rate an order
+router.patch('/:id/rate', auth, requireRole('customer'), async (req, res) => {
+  try {
+    const { rating, review } = req.body;
+    if (!rating || rating < 1 || rating > 5) return res.status(400).json({ error: 'Rating must be 1-5' });
+    const order = await Order.findById(req.params.id);
+    if (!order) return res.status(404).json({ error: 'Not found' });
+    if (String(order.customer) !== String(req.user._id)) return res.status(403).json({ error: 'Forbidden' });
+    if (order.status !== 'delivered') return res.status(400).json({ error: 'Can only rate delivered orders' });
+    if (order.customerRating) return res.status(400).json({ error: 'Already rated' });
+    order.customerRating = rating;
+    order.customerReview = review || '';
+    await order.save();
+    // Recalculate restaurant rating as moving average
+    const ratedOrders = await Order.find({ restaurant: order.restaurant, customerRating: { $ne: null } });
+    const avg = ratedOrders.reduce((s, o) => s + o.customerRating, 0) / ratedOrders.length;
+    await Restaurant.findByIdAndUpdate(order.restaurant, { rating: Math.round(avg * 10) / 10 });
+    res.json(order);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 export default router;

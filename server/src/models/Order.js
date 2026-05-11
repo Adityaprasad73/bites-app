@@ -37,6 +37,8 @@ const orderSchema = new mongoose.Schema(
         at: { type: Date, default: Date.now },
       },
     ],
+    customerRating: { type: Number, min: 1, max: 5, default: null },
+    customerReview: { type: String, trim: true, default: '' },
   },
   { timestamps: true }
 );

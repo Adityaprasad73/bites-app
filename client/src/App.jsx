@@ -13,6 +13,7 @@ import OwnerDashboard from './pages/OwnerDashboard.jsx';
 import DeliveryDashboard from './pages/DeliveryDashboard.jsx';
 import Profile from './pages/Profile.jsx';
 import CreateRestaurant from './pages/CreateRestaurant.jsx';
+import Admin from './pages/Admin.jsx';
 
 export default function App() {
   return (
@@ -31,6 +32,7 @@ export default function App() {
           <Route path="/owner/new-restaurant" element={<ProtectedRoute roles={['restaurant_owner', 'admin']}><CreateRestaurant /></ProtectedRoute>} />
           <Route path="/delivery" element={<ProtectedRoute roles={['delivery_partner', 'admin']}><DeliveryDashboard /></ProtectedRoute>} />
           <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
+          <Route path="/admin" element={<ProtectedRoute roles={['admin']}><Admin /></ProtectedRoute>} />
         </Routes>
       </main>
       <BottomNav />

@@ -1,6 +1,6 @@
 # Bites — Food Delivery MVP
 
-A simplified Zomato-style food delivery app inspired by [this video](https://www.youtube.com/watch?v=79F36yYEDyo). This is the **MVP version** — single repo, single backend, single frontend. No microservices, no RabbitMQ, no Maps API. But it's a real, working end-to-end app you can extend.
+A simplified Zomato-style food delivery app 
 
 ## What's in here
 

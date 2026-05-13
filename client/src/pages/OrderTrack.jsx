@@ -1,10 +1,12 @@
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, lazy, Suspense } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { api } from '../api/client.js';
 import { useAuth } from '../context/AuthContext.jsx';
-import { useSocket } from '../hooks/useSocket.js';
+import { useSocket, usePartnerLocationReceiver } from '../hooks/useSocket.js';
 import { useToast } from '../components/Toast.jsx';
 import StatusBadge from '../components/StatusBadge.jsx';
+
+const DeliveryMap = lazy(() => import('../components/DeliveryMap.jsx'));
 
 const STAGES = [
   { key: 'placed',           label: 'Order placed',         icon: '📋' },
@@ -30,6 +32,10 @@ export default function OrderTrack() {
   const [review, setReview] = useState('');
   const [submittingRating, setSubmittingRating] = useState(false);
   const [rated, setRated] = useState(false);
+  const [partnerPos, setPartnerPos] = useState(null);
+
+  // Listen for live partner GPS updates
+  usePartnerLocationReceiver(id, (pos) => setPartnerPos(pos));
 
   useEffect(() => {
     api.getOrder(id).then(o => {
@@ -115,6 +121,31 @@ export default function OrderTrack() {
         <div className="card p-6 mb-6 bg-red-50 border-red-200">
           <p className="font-semibold text-red-800">This order was cancelled.</p>
           <Link to="/" className="btn btn-ghost text-sm mt-3 inline-flex">Browse restaurants</Link>
+        </div>
+      )}
+
+      {/* Live map — shows from accepted onwards */}
+      {!cancelled && order.status !== 'placed' && (
+        <div className="mb-6">
+          <div className="flex items-center justify-between mb-2">
+            <h2 className="font-display text-xl font-bold">
+              {order.status === 'out_for_delivery' ? '🛵 Live tracking' : '📍 Delivery route'}
+            </h2>
+            {order.status === 'out_for_delivery' && partnerPos && (
+              <span className="flex items-center gap-1.5 text-xs font-semibold text-green-600 bg-green-50 border border-green-200 px-2.5 py-1 rounded-full">
+                <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+                Partner live
+              </span>
+            )}
+          </div>
+          <Suspense fallback={<div className="h-[320px] rounded-2xl bg-[var(--line)] animate-pulse" />}>
+            <DeliveryMap
+              restaurant={order.restaurant}
+              customerAddress={order.address}
+              partnerPos={partnerPos}
+              status={order.status}
+            />
+          </Suspense>
         </div>
       )}
 

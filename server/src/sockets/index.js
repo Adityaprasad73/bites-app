@@ -21,6 +21,14 @@ export function initSockets(httpServer, origin) {
     socket.on('join:delivery_pool', () => {
       socket.join('delivery_pool');
     });
+
+    // Delivery partner broadcasts their GPS location
+    // payload: { orderId, lat, lng }
+    socket.on('partner:location', ({ orderId, lat, lng }) => {
+      if (orderId && lat && lng) {
+        io.to(`order:${orderId}`).emit('partner:location', { lat, lng });
+      }
+    });
   });
 
   console.log('[socket] initialized');

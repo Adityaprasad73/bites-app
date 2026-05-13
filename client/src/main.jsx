@@ -1,3 +1,4 @@
+// entry point
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
@@ -6,6 +7,7 @@ import { AuthProvider } from './context/AuthContext.jsx';
 import { CartProvider } from './context/CartContext.jsx';
 import { ToastProvider } from './components/Toast.jsx';
 import './index.css';
+import 'leaflet/dist/leaflet.css';
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>

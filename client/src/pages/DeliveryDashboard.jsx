@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, useCallback } from 'react';
 import { api } from '../api/client.js';
-import { useSocket } from '../hooks/useSocket.js';
+import { useSocket, usePartnerLocation } from '../hooks/useSocket.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useToast } from '../components/Toast.jsx';
 import StatusBadge from '../components/StatusBadge.jsx';
@@ -184,6 +184,10 @@ export default function DeliveryDashboard() {
   useEffect(() => {
     if (tab === 'history' && !historyLoaded) loadHistory();
   }, [tab, historyLoaded, loadHistory]);
+
+  // Broadcast GPS when actively out for delivery
+  const activeDeliveryOrder = feed.mine.find(o => o.status === 'out_for_delivery');
+  usePartnerLocation(activeDeliveryOrder?._id, !!activeDeliveryOrder);
 
   const joins = useMemo(() => {
     const j = [{ event: 'join:delivery_pool', value: true }];

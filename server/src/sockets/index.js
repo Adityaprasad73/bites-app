@@ -4,7 +4,7 @@ let io = null;
 
 export function initSockets(httpServer, origin) {
   io = new Server(httpServer, {
-    cors: { origin, credentials: true },
+    cors: { origin: (o, cb) => cb(null, o || true), credentials: true },
   });
 
   io.on('connection', (socket) => {

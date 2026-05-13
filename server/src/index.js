@@ -11,7 +11,10 @@ import adminRoutes from './routes/admin.js';
 import paymentRoutes from './routes/payment.js';
 
 const app = express();
-app.use(cors({ origin: process.env.CLIENT_ORIGIN || '*', credentials: true }));
+app.use(cors({
+  origin: (origin, cb) => cb(null, origin || '*'),
+  credentials: true,
+}));
 app.use(express.json({ limit: '1mb' }));
 
 app.get('/api/health', (_req, res) => res.json({ ok: true, ts: Date.now() }));

@@ -6,3 +6,6 @@ build/
 *.log
 .vscode/
 .idea/
+
+.vercel
+.env*.local

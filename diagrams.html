@@ -1,0 +1,561 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Bites App — Architecture Diagrams</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Segoe UI', system-ui, sans-serif; background: #0f0f13; color: #e2e8f0; padding: 40px 24px; }
+
+    h1 { text-align: center; font-size: 2rem; font-weight: 900; color: #fff; margin-bottom: 6px; letter-spacing: -1px; }
+    .subtitle { text-align: center; color: #64748b; font-size: 0.9rem; margin-bottom: 60px; }
+
+    .section-title {
+      font-size: 1.3rem; font-weight: 800; color: #fff;
+      margin-bottom: 32px; text-align: center;
+      display: flex; align-items: center; justify-content: center; gap: 10px;
+    }
+    .section-title::before, .section-title::after {
+      content: ''; flex: 1; max-width: 120px; height: 1px; background: #334155;
+    }
+
+    /* ── DIAGRAM 1: TECH STACK ── */
+    .tech-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 16px;
+      max-width: 1100px;
+      margin: 0 auto 80px;
+    }
+    .tech-card {
+      background: #16181f;
+      border: 1px solid #1e2330;
+      border-radius: 16px;
+      padding: 20px;
+      position: relative;
+      overflow: hidden;
+      transition: border-color 0.2s, transform 0.2s;
+    }
+    .tech-card:hover { transform: translateY(-3px); border-color: #334155; }
+    .tech-card::before {
+      content: '';
+      position: absolute; inset: 0;
+      background: linear-gradient(135deg, var(--glow) 0%, transparent 60%);
+      opacity: 0.06;
+    }
+    .tech-icon { font-size: 2rem; margin-bottom: 10px; display: block; }
+    .tech-name { font-size: 1rem; font-weight: 700; color: #fff; margin-bottom: 4px; }
+    .tech-category { font-size: 0.65rem; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; color: var(--accent); margin-bottom: 10px; }
+    .tech-desc { font-size: 0.78rem; color: #94a3b8; line-height: 1.5; }
+    .tech-tag {
+      display: inline-block; margin-top: 10px;
+      background: var(--tag-bg); color: var(--accent);
+      font-size: 0.65rem; font-weight: 700; padding: 2px 8px; border-radius: 99px;
+    }
+
+    /* ── DIAGRAM 2: ARCHITECTURE ── */
+    .arch-wrapper {
+      max-width: 1000px;
+      margin: 0 auto 80px;
+    }
+
+    .arch-row {
+      display: flex;
+      align-items: flex-start;
+      gap: 0;
+      margin-bottom: 0;
+      position: relative;
+    }
+
+    .arch-layer {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      width: 100%;
+    }
+
+    .layer-label {
+      font-size: 0.65rem; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 2px; color: #475569; margin-bottom: 12px;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .layer-label::before, .layer-label::after {
+      content: ''; width: 30px; height: 1px; background: #1e2330;
+    }
+
+    .layer-box {
+      width: 100%;
+      background: #16181f;
+      border: 1px solid #1e2330;
+      border-radius: 20px;
+      padding: 24px;
+    }
+
+    .layer-box.client   { border-color: #1d4ed8; box-shadow: 0 0 40px #1d4ed820; }
+    .layer-box.server   { border-color: #15803d; box-shadow: 0 0 40px #15803d20; }
+    .layer-box.data     { border-color: #7c3aed; box-shadow: 0 0 40px #7c3aed20; }
+    .layer-box.external { border-color: #d97706; box-shadow: 0 0 40px #d9770620; }
+
+    .layer-inner-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 12px;
+    }
+
+    .inner-block {
+      background: #0f0f13;
+      border: 1px solid #1e2330;
+      border-radius: 12px;
+      padding: 14px;
+    }
+    .inner-block-title { font-size: 0.8rem; font-weight: 700; color: #fff; margin-bottom: 6px; display: flex; align-items: center; gap: 6px; }
+    .inner-block-items { list-style: none; }
+    .inner-block-items li { font-size: 0.72rem; color: #64748b; padding: 2px 0; display: flex; align-items: center; gap: 5px; }
+    .inner-block-items li::before { content: '—'; color: #334155; font-size: 0.7rem; }
+
+    /* Arrow between layers */
+    .arch-arrow {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      margin: 0 auto;
+      padding: 8px 0;
+    }
+    .arrow-line { width: 2px; height: 30px; background: linear-gradient(to bottom, #334155, #475569); }
+    .arrow-head { width: 0; height: 0; border-left: 7px solid transparent; border-right: 7px solid transparent; border-top: 10px solid #475569; }
+    .arrow-label { font-size: 0.6rem; color: #475569; text-transform: uppercase; letter-spacing: 1px; margin: 4px 0; }
+
+    /* Two-column layout for server + data */
+    .arch-side-by-side {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-bottom: 0;
+    }
+
+    .conn-line {
+      display: flex; align-items: center; justify-content: center; gap: 8px; margin: 10px 0;
+    }
+    .conn-line span { font-size: 0.65rem; color: #475569; }
+    .conn-line::before, .conn-line::after { content: ''; flex: 1; max-width: 80px; height: 1px; border-top: 1px dashed #334155; }
+
+    /* Legend */
+    .legend {
+      max-width: 1000px; margin: 0 auto 60px;
+      display: flex; flex-wrap: wrap; gap: 16px; justify-content: center;
+    }
+    .legend-item {
+      display: flex; align-items: center; gap: 8px;
+      font-size: 0.75rem; color: #94a3b8;
+    }
+    .legend-dot { width: 10px; height: 10px; border-radius: 3px; }
+
+    /* Flow diagram */
+    .flow-wrapper {
+      max-width: 900px; margin: 0 auto 60px;
+    }
+    .flow-row {
+      display: flex; align-items: center; gap: 0; margin-bottom: 0;
+    }
+    .flow-step {
+      flex: 1;
+      text-align: center;
+      background: #16181f; border: 1px solid #1e2330;
+      border-radius: 12px; padding: 12px 8px;
+      position: relative;
+    }
+    .flow-step-icon { font-size: 1.4rem; margin-bottom: 4px; }
+    .flow-step-name { font-size: 0.75rem; font-weight: 700; color: #fff; }
+    .flow-step-sub { font-size: 0.65rem; color: #64748b; margin-top: 2px; }
+    .flow-arrow { font-size: 1.2rem; color: #334155; padding: 0 6px; flex-shrink: 0; }
+
+    footer { text-align: center; color: #334155; font-size: 0.75rem; margin-top: 20px; }
+  </style>
+</head>
+<body>
+
+  <h1>🍽️ Bites App</h1>
+  <p class="subtitle">Technology stack & architecture overview</p>
+
+  <!-- ═══════════════════════════════════════════════════════
+       DIAGRAM 1 — TECH STACK
+  ════════════════════════════════════════════════════════ -->
+  <p class="section-title">Diagram 1 — Tech Stack</p>
+
+  <div class="tech-grid">
+
+    <div class="tech-card" style="--glow:#3b82f6; --accent:#60a5fa; --tag-bg:#1e3a5f;">
+      <span class="tech-icon">⚛️</span>
+      <div class="tech-name">React 18</div>
+      <div class="tech-category">Frontend Framework</div>
+      <div class="tech-desc">Builds every page — home, restaurant menu, order tracking, delivery dashboard. Uses hooks, context, and lazy loading.</div>
+      <span class="tech-tag">UI Layer</span>
+    </div>
+
+    <div class="tech-card" style="--glow:#a78bfa; --accent:#c4b5fd; --tag-bg:#2e1065;">
+      <span class="tech-icon">⚡</span>
+      <div class="tech-name">Vite</div>
+      <div class="tech-category">Build Tool</div>
+      <div class="tech-desc">Instantly compiles and hot-reloads React code during development. Bundles the app for production on Vercel.</div>
+      <span class="tech-tag">Dev Tools</span>
+    </div>
+
+    <div class="tech-card" style="--glow:#38bdf8; --accent:#7dd3fc; --tag-bg:#0c2a40;">
+      <span class="tech-icon">🎨</span>
+      <div class="tech-name">Tailwind CSS</div>
+      <div class="tech-category">Styling</div>
+      <div class="tech-desc">All styling is written as utility classes directly in JSX. Handles dark mode, responsive layout, and custom design tokens.</div>
+      <span class="tech-tag">UI Layer</span>
+    </div>
+
+    <div class="tech-card" style="--glow:#34d399; --accent:#6ee7b7; --tag-bg:#064e3b;">
+      <span class="tech-icon">🟩</span>
+      <div class="tech-name">Node.js + Express</div>
+      <div class="tech-category">Backend Server</div>
+      <div class="tech-desc">Handles all HTTP requests — user auth, placing orders, updating statuses, restaurant menus. Runs on Railway 24/7.</div>
+      <span class="tech-tag">API Layer</span>
+    </div>
+
+    <div class="tech-card" style="--glow:#f59e0b; --accent:#fcd34d; --tag-bg:#451a03;">
+      <span class="tech-icon">🍃</span>
+      <div class="tech-name">MongoDB + Mongoose</div>
+      <div class="tech-category">Database</div>
+      <div class="tech-desc">Stores users, restaurants, menu items, orders, and reviews. Mongoose provides typed schemas and easy querying.</div>
+      <span class="tech-tag">Data Layer</span>
+    </div>
+
+    <div class="tech-card" style="--glow:#f97316; --accent:#fdba74; --tag-bg:#431407;">
+      <span class="tech-icon">🔌</span>
+      <div class="tech-name">Socket.io</div>
+      <div class="tech-category">Real-time</div>
+      <div class="tech-desc">Powers live order status updates and GPS tracking. Partner broadcasts location → server relays → customer sees pin move on map.</div>
+      <span class="tech-tag">Real-time</span>
+    </div>
+
+    <div class="tech-card" style="--glow:#10b981; --accent:#6ee7b7; --tag-bg:#064e3b;">
+      <span class="tech-icon">🗺️</span>
+      <div class="tech-name">Leaflet + OpenStreetMap</div>
+      <div class="tech-category">Maps</div>
+      <div class="tech-desc">Shows the delivery route and live partner pin on the order tracking page. Free — no API key or credit card needed.</div>
+      <span class="tech-tag">Maps</span>
+    </div>
+
+    <div class="tech-card" style="--glow:#ef4444; --accent:#fca5a5; --tag-bg:#450a0a;">
+      <span class="tech-icon">🔐</span>
+      <div class="tech-name">JWT Auth</div>
+      <div class="tech-category">Authentication</div>
+      <div class="tech-desc">After login the server issues a signed token stored in localStorage. Every protected request sends it in the Authorization header.</div>
+      <span class="tech-tag">Security</span>
+    </div>
+
+    <div class="tech-card" style="--glow:#6366f1; --accent:#a5b4fc; --tag-bg:#1e1b4b;">
+      <span class="tech-icon">🌐</span>
+      <div class="tech-name">React Router v6</div>
+      <div class="tech-category">Routing</div>
+      <div class="tech-desc">Handles client-side navigation between pages (home, restaurant, cart, track order, dashboard) without page reloads.</div>
+      <span class="tech-tag">Navigation</span>
+    </div>
+
+    <div class="tech-card" style="--glow:#0ea5e9; --accent:#7dd3fc; --tag-bg:#0c2a40;">
+      <span class="tech-icon">▲</span>
+      <div class="tech-name">Vercel</div>
+      <div class="tech-category">Frontend Hosting</div>
+      <div class="tech-desc">Deploys the React app globally on a CDN. Auto-deploys whenever you push to GitHub master branch.</div>
+      <span class="tech-tag">Deployment</span>
+    </div>
+
+    <div class="tech-card" style="--glow:#7c3aed; --accent:#c4b5fd; --tag-bg:#2e1065;">
+      <span class="tech-icon">🚂</span>
+      <div class="tech-name">Railway</div>
+      <div class="tech-category">Backend Hosting</div>
+      <div class="tech-desc">Runs the Node.js server and MongoDB. Keeps the server alive 24/7 with persistent storage and environment variables.</div>
+      <span class="tech-tag">Deployment</span>
+    </div>
+
+    <div class="tech-card" style="--glow:#f59e0b; --accent:#fcd34d; --tag-bg:#451a03;">
+      <span class="tech-icon">📦</span>
+      <div class="tech-name">Context API</div>
+      <div class="tech-category">State Management</div>
+      <div class="tech-desc">AuthContext holds the logged-in user. CartContext holds cart items in memory and syncs to localStorage (versioned to avoid stale IDs).</div>
+      <span class="tech-tag">State</span>
+    </div>
+
+  </div>
+
+
+  <!-- ═══════════════════════════════════════════════════════
+       DIAGRAM 2 — ARCHITECTURE
+  ════════════════════════════════════════════════════════ -->
+  <p class="section-title">Diagram 2 — Project Architecture</p>
+
+  <div class="arch-wrapper">
+
+    <!-- CLIENT LAYER -->
+    <div class="layer-label">Client — Vercel CDN</div>
+    <div class="layer-box client">
+      <div class="layer-inner-grid">
+        <div class="inner-block">
+          <div class="inner-block-title">📄 Pages</div>
+          <ul class="inner-block-items">
+            <li>Home (restaurant list)</li>
+            <li>Restaurant + Menu</li>
+            <li>Cart &amp; Checkout</li>
+            <li>Order Tracking</li>
+            <li>Delivery Dashboard</li>
+            <li>Restaurant Dashboard</li>
+            <li>Login / Register</li>
+          </ul>
+        </div>
+        <div class="inner-block">
+          <div class="inner-block-title">🧠 State</div>
+          <ul class="inner-block-items">
+            <li>AuthContext (user + JWT)</li>
+            <li>CartContext (items)</li>
+            <li>Toast notifications</li>
+            <li>Local useState per page</li>
+          </ul>
+        </div>
+        <div class="inner-block">
+          <div class="inner-block-title">🗺️ Map</div>
+          <ul class="inner-block-items">
+            <li>DeliveryMap (Leaflet)</li>
+            <li>Restaurant pin 🍽️</li>
+            <li>Customer pin 🏠</li>
+            <li>Partner live pin 🛵</li>
+            <li>OpenStreetMap tiles</li>
+          </ul>
+        </div>
+        <div class="inner-block">
+          <div class="inner-block-title">🔌 Sockets (client)</div>
+          <ul class="inner-block-items">
+            <li>join:order room</li>
+            <li>join:user room</li>
+            <li>join:delivery_pool</li>
+            <li>partner:location emit</li>
+            <li>order:update receive</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- ARROW DOWN -->
+    <div class="arch-arrow">
+      <div class="arrow-line"></div>
+      <div class="arrow-label">HTTPS REST + WebSocket (wss://)</div>
+      <div class="arrow-line"></div>
+      <div class="arrow-head"></div>
+    </div>
+
+    <!-- SERVER LAYER -->
+    <div class="layer-label">Server — Railway (Node.js / Express)</div>
+    <div class="layer-box server">
+      <div class="layer-inner-grid">
+        <div class="inner-block">
+          <div class="inner-block-title">🔐 Auth Routes</div>
+          <ul class="inner-block-items">
+            <li>POST /register</li>
+            <li>POST /login → JWT</li>
+            <li>PATCH /toggle-online</li>
+            <li>PATCH /profile</li>
+            <li>JWT middleware</li>
+          </ul>
+        </div>
+        <div class="inner-block">
+          <div class="inner-block-title">🍽️ Restaurant Routes</div>
+          <ul class="inner-block-items">
+            <li>GET /restaurants</li>
+            <li>GET /:id/menu</li>
+            <li>GET /:id/reviews</li>
+            <li>POST /restaurants</li>
+            <li>PUT /:id/menu items</li>
+          </ul>
+        </div>
+        <div class="inner-block">
+          <div class="inner-block-title">📦 Order Routes</div>
+          <ul class="inner-block-items">
+            <li>POST /orders (place)</li>
+            <li>GET /orders/:id</li>
+            <li>PATCH /:id/status</li>
+            <li>POST /:id/rate</li>
+            <li>GET /delivery/feed</li>
+            <li>GET /delivery/history</li>
+          </ul>
+        </div>
+        <div class="inner-block">
+          <div class="inner-block-title">🔌 Socket.io Server</div>
+          <ul class="inner-block-items">
+            <li>Room: order:{"{id}"}</li>
+            <li>Room: user:{"{id}"}</li>
+            <li>Room: restaurant:{"{id}"}</li>
+            <li>Room: delivery_pool</li>
+            <li>Relay partner:location</li>
+            <li>Broadcast order:update</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- ARROW DOWN -->
+    <div class="arch-arrow">
+      <div class="arrow-line"></div>
+      <div class="arrow-label">Mongoose ODM</div>
+      <div class="arrow-line"></div>
+      <div class="arrow-head"></div>
+    </div>
+
+    <!-- DATA LAYER -->
+    <div class="layer-label">Data — MongoDB Atlas</div>
+    <div class="layer-box data">
+      <div class="layer-inner-grid">
+        <div class="inner-block">
+          <div class="inner-block-title">👤 Users</div>
+          <ul class="inner-block-items">
+            <li>name, email, phone</li>
+            <li>role (customer/partner/restaurant)</li>
+            <li>isOnline, vehicleType</li>
+            <li>bcrypt hashed password</li>
+          </ul>
+        </div>
+        <div class="inner-block">
+          <div class="inner-block-title">🏪 Restaurants</div>
+          <ul class="inner-block-items">
+            <li>name, address, image</li>
+            <li>cuisine, rating</li>
+            <li>owner (ref: User)</li>
+            <li>menu items array</li>
+          </ul>
+        </div>
+        <div class="inner-block">
+          <div class="inner-block-title">📋 Orders</div>
+          <ul class="inner-block-items">
+            <li>items, total, address</li>
+            <li>status + statusHistory</li>
+            <li>customer, restaurant (refs)</li>
+            <li>deliveryPartner (ref)</li>
+            <li>customerRating, review</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- ARROW DOWN -->
+    <div class="arch-arrow">
+      <div class="arrow-line"></div>
+      <div class="arrow-label">tile requests (no API key)</div>
+      <div class="arrow-line"></div>
+      <div class="arrow-head"></div>
+    </div>
+
+    <!-- EXTERNAL -->
+    <div class="layer-label">External Service</div>
+    <div class="layer-box external" style="text-align:center;">
+      <div style="display:inline-flex; align-items:center; gap:16px; flex-wrap:wrap; justify-content:center;">
+        <div class="inner-block" style="min-width:200px;">
+          <div class="inner-block-title">🗺️ OpenStreetMap</div>
+          <ul class="inner-block-items">
+            <li>Serves map tile images</li>
+            <li>Free, no API key</li>
+            <li>Leaflet fetches tiles directly</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+
+  <!-- ═══════════════════════════════════════════════════════
+       DIAGRAM 3 — ORDER LIFECYCLE FLOW
+  ════════════════════════════════════════════════════════ -->
+  <p class="section-title">Diagram 3 — Order Lifecycle</p>
+
+  <div class="flow-wrapper">
+
+    <!-- Row 1 -->
+    <div style="display:flex; align-items:center; gap:8px; margin-bottom:8px; flex-wrap:wrap; justify-content:center;">
+      <div class="flow-step" style="border-color:#3b82f6;">
+        <div class="flow-step-icon">👤</div>
+        <div class="flow-step-name">Customer</div>
+        <div class="flow-step-sub">Browses menu</div>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step" style="border-color:#3b82f6;">
+        <div class="flow-step-icon">🛒</div>
+        <div class="flow-step-name">Cart</div>
+        <div class="flow-step-sub">Adds items</div>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step" style="border-color:#3b82f6;">
+        <div class="flow-step-icon">📋</div>
+        <div class="flow-step-name">Order Placed</div>
+        <div class="flow-step-sub">POST /orders</div>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step" style="border-color:#15803d;">
+        <div class="flow-step-icon">🏪</div>
+        <div class="flow-step-name">Restaurant</div>
+        <div class="flow-step-sub">Gets socket ping</div>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step" style="border-color:#15803d;">
+        <div class="flow-step-icon">✅</div>
+        <div class="flow-step-name">Accepted</div>
+        <div class="flow-step-sub">Status update</div>
+      </div>
+    </div>
+
+    <!-- connector -->
+    <div style="display:flex; justify-content:flex-end; padding-right:calc(50% - 24px); color:#334155; font-size:1.2rem; margin:4px 0;">↓</div>
+
+    <!-- Row 2 (reversed) -->
+    <div style="display:flex; align-items:center; gap:8px; margin-bottom:8px; flex-wrap:wrap; justify-content:center; flex-direction:row-reverse;">
+      <div class="flow-step" style="border-color:#15803d;">
+        <div class="flow-step-icon">👨‍🍳</div>
+        <div class="flow-step-name">Preparing</div>
+        <div class="flow-step-sub">Kitchen cooks</div>
+      </div>
+      <div class="flow-arrow">←</div>
+      <div class="flow-step" style="border-color:#15803d;">
+        <div class="flow-step-icon">📦</div>
+        <div class="flow-step-name">Ready</div>
+        <div class="flow-step-sub">Delivery pool notified</div>
+      </div>
+      <div class="flow-arrow">←</div>
+      <div class="flow-step" style="border-color:#f59e0b;">
+        <div class="flow-step-icon">🛵</div>
+        <div class="flow-step-name">Partner Accepts</div>
+        <div class="flow-step-sub">Claims from feed</div>
+      </div>
+      <div class="flow-arrow">←</div>
+      <div class="flow-step" style="border-color:#f59e0b;">
+        <div class="flow-step-icon">📍</div>
+        <div class="flow-step-name">Out for Delivery</div>
+        <div class="flow-step-sub">GPS broadcast starts</div>
+      </div>
+      <div class="flow-arrow">←</div>
+      <div class="flow-step" style="border-color:#10b981;">
+        <div class="flow-step-icon">🎉</div>
+        <div class="flow-step-name">Delivered</div>
+        <div class="flow-step-sub">Rating unlocked</div>
+      </div>
+    </div>
+
+    <!-- Bottom note -->
+    <div style="margin-top:24px; display:flex; gap:10px; flex-wrap:wrap; justify-content:center;">
+      <div style="background:#16181f; border:1px solid #1e2330; border-radius:10px; padding:12px 16px; font-size:0.75rem; color:#94a3b8; max-width:260px; text-align:center;">
+        <strong style="color:#60a5fa;">🔌 Socket.io</strong> pushes every status change in real-time to the customer, restaurant, and delivery partner simultaneously
+      </div>
+      <div style="background:#16181f; border:1px solid #1e2330; border-radius:10px; padding:12px 16px; font-size:0.75rem; color:#94a3b8; max-width:260px; text-align:center;">
+        <strong style="color:#6ee7b7;">🗺️ Leaflet map</strong> on the Order Track page shows a live 🛵 pin that moves as the partner walks/drives using <code style="color:#fcd34d;">navigator.geolocation</code>
+      </div>
+      <div style="background:#16181f; border:1px solid #1e2330; border-radius:10px; padding:12px 16px; font-size:0.75rem; color:#94a3b8; max-width:260px; text-align:center;">
+        <strong style="color:#fca5a5;">🔐 JWT</strong> is checked on every protected route — role-based access ensures only restaurants can accept orders, only partners can pick up, etc.
+      </div>
+    </div>
+  </div>
+
+  <footer>Bites App · built with React + Express + MongoDB + Socket.io + Leaflet</footer>
+
+</body>
+</html>
